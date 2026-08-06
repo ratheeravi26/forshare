@@ -1,0 +1,43 @@
+CIAM Coexistence — The Story (extract from guidance session)
+Source narrative and delivery guidance, organised by its own logic. Points 7 and 13 are the two to memorise.
+1. Why it is called coexistence — the granularity mismatch
+The data and identity context we need sit at different levels of granularity. In the target world, with CIAM and the party data model, identity is anchored around the customer — the legal entity, the legal hierarchy. But clients do not always operate with Euroclear only at that legal entity level. On the legacy platforms they operate at a more granular participant level, and that participant context is what EPN represents today.
+2. First part of the problem
+A client can be distributed across multiple participants. So if CIAM gives me the customer identity, that is useful — but the legacy platform still needs to know: which participant, which EPN context, which legacy business context are we talking about?
+3. Second layer of complexity
+In the legacy setup we combined not only the customer-to-participant relationship, but also the participant-to-account access relationship. The same participant can have different account accesses by user. So we created a second level of fine-grained authorisation, which is really an application context. That is what is required today when users access our legacy platforms — and that is why we have UAM and why we have SAMS.
+4. The point
+CIAM does not yet completely support that equivalent setup end to end. The target party construct gives us the legal hierarchy or customer construct, but it does not yet fully give us the complete EPN, participant context and account entitlement context that the legacy platforms require. Therefore, in the short to medium term, we still need to resolve that through coexistence.
+5. The second reason — timing
+Cloud adoption and the transition of EasyWay and other related channels, screens and applications to the target platform will take time. It is not that everything moves immediately. Some core transactional processes will still remain on-premise. Some mainframe-related capabilities are not going away in the immediate future. Clients, systems, APIs and even future AI agents may still need to access core transactional systems that sit in the legacy estate.
+That is why this is not a pure transition story. It is not that we move everything from old to new and then switch off the old world. For a period of time, both worlds need to operate together — CIAM must coexist with the legacy identity and authorisation setup, because the business still depends on those legacy contexts. That is why these are coexistence patterns.
+6. SSO is only one part
+SSO is important, but it is only one part of facilitating the interaction. SSO solves the authentication aspect — it lets the user log in once and have a seamless experience across the landscape. But SSO does not solve authorisation. It does not tell you which EPN context applies, and it does not tell you which accounts and functions the user is entitled to access.
+So you have two parts. One is SSO, which solves authentication and gives the seamless user journey. The other is the coexistence pattern, which is required for authorisation and legacy context resolution. That is why you need the OrgID-to-EPN translation, and that is why SAMS continues to be part of the picture for fine-grained account-level authorisation.
+7. The three questions
+• Translation answers: given this CIAM identity, what is the correct legacy participant or EPN context?
+• SAMS answers: within that participant context, what accounts and functions can this user access?
+• SSO answers: how do we make the authentication journey seamless so the customer does not have to log in multiple times across different platforms?
+Memorise this triad. It is the most portable explanation of the whole architecture.
+8. The executive framing
+The Board needs to understand that coexistence is not a technical workaround. It is the architecture mechanism that allows the target CIAM platform and the legacy IAM world to operate together while Euroclear transitions progressively.
+9. Two kinds of value
+Client experience: the user logs in once and can move across the landscape without being exposed to the complexity behind the scenes. From the customer perspective the service should feel consistent — they should not need to know whether something is on cloud, on-premise, or partially transitioned. The architecture absorbs that complexity through access control, identity resolution and coexistence.
+Transition value: because we have SSO and coexistence, we do not have to move entire applications in one block. We can move bits of applications, capabilities or functions gradually, as long as we can distinguish them discretely. That helps our cloud strategy and our phased migration strategy.
+10. Part one of a broader journey
+This presentation covers the coexistence patterns, but there is further work around the Web BFF — the web back end for front end. We need to work through how the web front end supports back-end access as a proxy, and how that proxy resolution works with the new identity platform.
+There are also future authorisation topics: coarse-grained authorisation, fine-grained authorisation, client access, staff access to client applications for support or operational purposes, and staff acting as customer. Those need to be resolved across our channels.
+11. Why we are here today
+We are not trying to solve every identity and authorisation topic in one go. We are establishing the immediate coexistence foundation that allows CIAM adoption to progress while legacy dependencies remain. The next patterns and workshops will address Web BFF, proxy access and the broader authorisation scenarios.
+12. Delivery guidance
+• Do not read the slides. Talk to the slides. Time is limited and there will be questions along the way, so focus only on the key messages.
+• Once the context is given, do not spend time reading every slide — the problem is already explained.
+• Capability map: do not just show it and move on. Explain what is fully impacted, what is partially impacted, and what is not impacted — and where there is partial shading, explain why. That is the key message of that slide.
+• Per entity: EB is coexistence for UAM and SSO. EUI is coexistence for common customers with EB plus SSO. ESES is SSO only, no UAM/SAMS impact. Nordics has SSO in the target with limited interim impact. Non-CSD has no impact except MFEX, which is similar to EB.
+• Current-to-coexistence-to-target slide: explain the movement. Note that SAMS still appears in target, because you may be able to replace UAM but you cannot simply replace SAMS without resolving the fine-grained account authorisation problem. Say clearly that we will come back with more work on that.
+• SSO value slide: say it simply — first value is seamless user experience; second value is structured transition, because SSO lets us move applications or parts of applications gradually, phasing the cloud transition and shielding clients from back-end complexity.
+• OrgID-to-EPN translation slide: do not re-explain everything. Just say this is the translation spoken about earlier — the relationship between the CIAM OrgID and the legacy EPN or participant context.
+• Financials: mention the budget at high level, do not overdo it.
+• Risks: spend time at the end on the risks of proceeding and of not proceeding. That is where you bring the Board back to the decision they need to make.
+13. The one-line summary
+We have a CIAM challenge, we have a legacy participant and account-authorisation challenge, SSO alone does not solve that, coexistence is required, and these decisions allow us to move forward while keeping business continuity.
