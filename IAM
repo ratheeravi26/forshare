@@ -1,0 +1,453 @@
+Since I cannot directly send binary `.docx` files through chat, here are **two ways** to get this into Word immediately:
+
+1. **Option 1 (Instant Copy-Paste):** Copy the structured Markdown below and paste it directly into Microsoft Word or Google Docs. Word automatically converts Markdown tables, headers, and bullet points into native document formatting.
+2. **Option 2 (Automated `.docx` Generator):** Run the provided short Python script at the bottom to automatically generate a styled `CIAM_Persona_Architecture.docx` file on your machine.
+
+---
+
+# CIAM Target Persona Architecture Specification
+
+**Document Control Information**
+
+* **Title:** Euroclear CIAM Target Persona & Identity Ingestion Architecture Framework
+* **Author:** Enterprise Security & Integration Architecture Group
+* **Target Audience:** Enterprise Security Architect, Identity Working Group, Domain Application Teams (App 1 – App 5)
+
+
+
+---
+
+## 1. Executive Summary & Persona Taxonomy
+
+This specification defines the complete taxonomy of Customer Identity & Access Management (CIAM) personas for Euroclear's target architecture. Personas are structured across three primary operational domains: **External B2B Clients**, **Internal Workforce Operating in CIAM Context**, and **Non-Human / Channel System Personas**.
+
+### Summary Matrix
+
+| Persona Code | Persona Name | Primary Identity Authority | Ingestion / Lifecycle Pathway | Default Channel(s) | Target Assurance (AAL) | Commercial Attribute |
+| --- | --- | --- | --- | --- | --- | --- |
+| **EXT-ADM** | Delegated Client Administrator | Target CIAM / Client IdP | Delegated Admin UI / SCIM API | Internet, BT Radianz | **AAL3** (FIDO2 / Hardware Key) | Billable / Non-Billable |
+| **EXT-USR-S** | Single-Entity Client User | Delegated Admin / Client SCIM | Delegated Admin UI / SCIM API | Internet, BT Radianz | **AAL2 / AAL3** | Billable / Non-Billable |
+| **EXT-USR-M** | Multi-Entity Intersected User | Delegated Admin / Client SCIM | Delegated Admin UI / SCIM API | Internet, BT Radianz | **AAL3** | Billable / Non-Billable |
+| **EXT-USR-NB** | Non-Billable Client User | Delegated Admin / Internal Admin | Delegated Admin UI / Manual | Internet, BT Radianz | **AAL2** | **Non-Billable** |
+| **INT-MOD-CLI** | Internal Staff – Acting as Client | Corporate IDAM | Workforce Sync (SCIM) | Corporate Net, BT Radianz | **AAL3** | Non-Billable |
+| **INT-MOD-IMP** | Internal Staff – Impersonation | Corporate IDAM $\rightarrow$ CIAM Broker | Workforce Sync + Dynamic Step-Up | Corporate Net, BT Radianz | **AAL3 + Contextual Step-Up** | Non-Billable |
+| **INT-MOD-ADM** | Internal Staff – Acting as Admin | Corporate IDAM | Workforce Sync (SCIM) | Internal Admin Channel | **AAL3** | Non-Billable |
+| **INT-MOD-SFT** | Internal Staff – Software Admin | Corporate IDAM / PAM | Workforce Sync / PAM Session | Privileged Admin Channel | **AAL3** | Non-Billable |
+| **NHI-SWF-SYS** | Automated Financial System | Cryptographic Key Repository | SWIFT Synchronization | SWIFTnet, BT Radianz | **AAL3** (mTLS + Token) | Billable / Non-Billable |
+| **NHI-SCM-API** | Enterprise SCIM Ingestion Client | External Client IGA System | API Client Provisioning | Internet (TLS 1.3), BT Radianz | **AAL3** (mTLS + OAuth) | Non-Billable |
+| **TRN-UAM-JIT** | Coexistence Legacy User | Legacy UAM / Directory | Just-In-Time (JIT) via UAM | Internet, BT Radianz | **AAL2** (Legacy Auth) | Billable / Non-Billable |
+
+---
+
+## 2. Detailed Persona Specifications
+
+### Section A: External B2B Client Personas
+
+#### 1. Delegated Client Administrator (`EXT-ADM`)
+
+* **Description:** External power-user responsible for managing organization user lifecycles, assigning application entitlements, and configuring B2B identity federation or SCIM synchronization.
+
+
+* **Identity Lifecycle & Ingestion:** Bootstrapped by Euroclear Admin; manages sub-users via the Delegated Admin interface or configures SCIM integration.
+
+
+* **Access Channels:** Public Internet, BT Radianz.
+
+
+* **Authenticator Assurance Level:** **AAL3** (Mandatory WebAuthn / FIDO2 security key or hardware token).
+
+
+* **Entity Population Scope:** Bound to client organization base entity ($\text{EB}$, $\text{ESES}$, $\text{EUI}$, or $\text{Nordics}$) or derived multi-entity scope ($\text{EB} \cap \text{ESES}$, etc.).
+
+
+* **Entitlements:** Fine-grained administrative rights (`user:create`, `user:modify`, `role:assign`, `scim:configure`).
+* **JWT Claim Structure:**
+```json
+{
+  "role": "DelegatedAdmin",
+  "org_id": "ORG_CLIENT_01",
+  "admin_scope": ["users", "entitlements"]
+}
+
+```
+
+
+
+#### 2. Single-Entity Client User (`EXT-USR-S`)
+
+* **Description:** Standard institutional user operating strictly within a single Euroclear operating entity (e.g., Euroclear Bank only).
+
+
+* **Identity Lifecycle & Ingestion:** Provisioned by client’s `EXT-ADM` via Delegated Admin UI or pushed automatically via SCIM 2.0 API from client enterprise IGA.
+
+
+* **Access Channels:** Public Internet, BT Radianz.
+
+
+* **Authenticator Assurance Level:** **AAL2** (Passkeys / TOTP / Push) or **AAL3** based on transaction risk policy.
+
+
+* **Entity Population Scope:** Base Population: $\text{EB Clients Only}$, $\text{ESES Clients Only}$, $\text{EUI Clients Only}$, or $\text{Nordics Clients Only}$.
+
+
+* **Commercial Classification:** Tagged downstream as **Billable Client** or **Non-Billable Client**.
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "entity_scope": "EB_ONLY",
+  "billable": true,
+  "market_access": ["EB"]
+}
+
+```
+
+
+
+#### 3. Multi-Entity Intersected Client User (`EXT-USR-M`)
+
+* **Description:** Institutional client user belonging to an organization operating across multiple Euroclear entities requiring unified cross-market access.
+
+
+* **Identity Lifecycle & Ingestion:** Provisioned via Delegated Admin UI or SCIM 2.0 API.
+
+
+* **Access Channels:** Public Internet, BT Radianz.
+
+
+* **Authenticator Assurance Level:** **AAL3** (High Assurance mTLS or Hardware FIDO2) due to multi-market settlement footprint.
+
+
+* **Entity Population Scope:** Derived Population Intersections:
+* $\text{EB} \cap \text{ESES}$
+
+* $\text{ESES} \cap \text{EUI}$
+
+* $\text{EB} \cap \text{ESES} \cap \text{EUI}$
+
+
+
+* **Authorization Consideration:** Policy Engine evaluates set intersections to dynamically grant multi-entity resource access without separate logins.
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "entity_scope": "INTERSECTED",
+  "base_entities": ["EB", "ESES", "EUI"],
+  "derived_intersection": "EB_N_ESES_N_EUI",
+  "billable": true
+}
+
+```
+
+
+
+#### 4. Non-Billable Client User (`EXT-USR-NB`)
+
+* **Description:** External user associated with test accounts, regulatory entities, market infrastructure observers, or non-billable client tiers.
+
+
+* **Identity Lifecycle & Ingestion:** Provisioned via Delegated Admin UI or created by internal Euroclear administrators.
+
+
+* **Access Channels:** Public Internet, BT Radianz.
+
+
+* **Authenticator Assurance Level:** **AAL2**.
+
+
+* **Entity Population Scope:** Any Base or Derived Population.
+
+
+* **Commercial Classification:** Explicitly tagged as **Non-Billable**.
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "billable": false,
+  "account_tier": "NON_BILLABLE"
+}
+
+```
+
+
+
+---
+
+### Section B: Internal Workforce Personas Operating in CIAM Scope
+
+#### 5. Internal Staff – Acting as Client (`INT-MOD-CLI`)
+
+* **Description:** Euroclear employee (business analyst, UAT tester, operations officer) accessing client applications in a simulated client context for operational validation.
+
+
+* **Identity Lifecycle & Ingestion:** Ingested into CIAM via automated Workforce Identity System synchronization.
+
+
+* **Access Channels:** Corporate Network, BT Radianz.
+
+
+* **Authenticator Assurance Level:** **AAL3** (Corporate SSO with step-up).
+
+
+* **Operating Mode:** `Acting as Client`.
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "principal_type": "INTERNAL",
+  "operating_mode": "ACTING_AS_CLIENT",
+  "simulated_client_id": "CLIENT_9981"
+}
+
+```
+
+
+
+#### 6. Internal Staff – Acting with Impersonation (`INT-MOD-IMP`)
+
+* **Description:** Support desk operator or client service agent logging into client applications "on behalf of" an external client user to troubleshoot issues.
+
+
+* **Identity Lifecycle & Ingestion:** Sync via Workforce system; dynamic token generated via CIAM Identity Broker using RFC 8693 Token Exchange.
+
+
+* **Access Channels:** Euroclear Internal Workspace, BT Radianz.
+
+
+* **Authenticator Assurance Level:** **AAL3 + Contextual Step-Up** (Mandatory active Service Desk Ticket ID).
+
+
+* **Operating Mode:** `Acting with Impersonation`.
+
+
+* **JWT Claim Structure (Dual-Identity):**
+```json
+{
+  "sub": "CLIENT_USER_123",
+  "act": {
+    "sub": "INTERNAL_OPERATOR_456"
+  },
+  "ticket_id": "INC1234567",
+  "operating_mode": "IMPERSONATION"
+}
+
+```
+
+
+
+#### 7. Internal Staff – Acting as Admin (`INT-MOD-ADM`)
+
+* **Description:** Internal Euroclear business administrator managing global client organization profiles, entitlement structures, and population membership mappings.
+
+
+* **Identity Lifecycle & Ingestion:** Ingested via Workforce SCIM Sync.
+
+
+* **Access Channels:** Internal Business Admin Portal / BT Radianz.
+
+
+* **Authenticator Assurance Level:** **AAL3**.
+
+
+* **Operating Mode:** `Acting as Admin`.
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "principal_type": "INTERNAL",
+  "operating_mode": "ACTING_AS_ADMIN",
+  "global_admin": true
+}
+
+```
+
+
+
+#### 8. Internal Staff – Software Admin (`INT-MOD-SFT`)
+
+* **Description:** Technical infrastructure architect or CIAM platform administrator managing identity gateways, directory settings, and system integration parameters.
+
+
+* **Identity Lifecycle & Ingestion:** Workforce Sync integrated with Privileged Access Management (PAM).
+
+
+* **Access Channels:** Privileged Internal Admin Segment.
+
+
+* **Authenticator Assurance Level:** **AAL3** (PAM Session + Cryptographic Auth).
+
+
+* **Operating Mode:** `Acting as Internal Software Admin`.
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "principal_type": "INTERNAL",
+  "operating_mode": "ACTING_AS_SOFTWARE_ADMIN",
+  "scope": "ciam:config"
+}
+
+```
+
+
+
+---
+
+### Section C: Non-Human Identities & System Personas
+
+#### 9. Automated Financial System (`NHI-SWF-SYS`)
+
+* **Description:** Non-human automated trading, clearing, or settlement engine executing automated straight-through processing (STP) messages via SWIFT or dedicated financial networks.
+
+
+* **Identity Lifecycle & Ingestion:** Synchronized via SWIFT network directory integrations or pre-provisioned via secure system registration.
+
+
+* **Access Channels:** SWIFTnet, BT Radianz, Private Leased Lines.
+
+
+* **Authenticator Assurance Level:** **AAL3**: Mutual TLS (mTLS) with client certificates combined with OAuth 2.0 Client Credentials.
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "client_id": "SWIFT_BIC_CODE_X",
+  "token_type": "mTLS_Sender_Constrained",
+  "channel": "SWIFT"
+}
+
+```
+
+
+
+#### 10. Enterprise SCIM Ingestion Client (`NHI-SCM-API`)
+
+* **Description:** Automated API client operated by external client IGA platforms (e.g., SailPoint, Saviynt, Okta) to automatically push user lifecycle changes into Euroclear CIAM.
+
+
+* **Identity Lifecycle & Ingestion:** Provisioned during client onboarding with API client credentials.
+
+
+* **Access Channels:** Public Internet (TLS 1.3), BT Radianz.
+
+
+* **Authenticator Assurance Level:** **AAL3**: OAuth 2.0 Private Key JWT / mTLS authentication.
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "grant_type": "client_credentials",
+  "scope": "scim:write",
+  "tenant_id": "ORG_CLIENT_01"
+}
+
+```
+
+
+
+#### 11. Coexistence Legacy User – Transition State (`TRN-UAM-JIT`)
+
+* **Description:** Temporary persona representation for users authenticating through legacy User Access Management (UAM) while backend applications transition to target CIAM.
+
+
+* **Identity Lifecycle & Ingestion:** Managed in legacy UAM; upon login, Just-In-Time (JIT) engine dynamically provisions or updates identity context in Target CIAM.
+
+
+* **Access Channels:** Internet, BT Radianz, Legacy Portals.
+
+
+* **Authenticator Assurance Level:** **AAL2** (Legacy credential validation).
+
+
+* **JWT Claim Structure:**
+```json
+{
+  "identity_source": "UAM_LEGACY",
+  "jit_provisioned": true,
+  "target_ciam_id": "GUID_88102931"
+}
+
+```
+
+
+
+---
+
+### Option 2: Python Script to Generate `.docx` File Automatically
+
+If you want an actual `.docx` file created on your machine, save and run this script using Python (`pip install python-docx`):
+
+```python
+import docx
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT
+
+doc = docx.Document()
+
+# Page Margins
+sections = doc.sections
+for section in sections:
+    section.top_margin = Inches(1)
+    section.bottom_margin = Inches(1)
+    section.left_margin = Inches(1)
+    section.right_margin = Inches(1)
+
+# Title
+title = doc.add_paragraph()
+title_run = title.add_run("CIAM Target Persona Architecture Specification")
+title_run.font.size = Pt(22)
+title_run.font.bold = True
+title_run.font.color.rgb = RGBColor(0, 51, 102)
+
+# Subtitle
+subtitle = doc.add_paragraph()
+subtitle_run = subtitle.add_run("Euroclear Target Architecture Deliverable — Enterprise Security Architecture")
+subtitle_run.font.size = Pt(12)
+subtitle_run.font.italic = True
+subtitle_run.font.color.rgb = RGBColor(100, 100, 100)
+
+doc.add_heading("1. Executive Summary & Persona Matrix", level=1)
+
+# Table creation
+table_data = [
+    ["Code", "Persona Name", "Authority", "Pathway", "AAL", "Commercial"],
+    ["EXT-ADM", "Delegated Client Admin", "CIAM / Client IdP", "Delegated UI / SCIM", "AAL3", "Billable / Non-Billable"],
+    ["EXT-USR-S", "Single-Entity User", "Delegated Admin", "Delegated UI / SCIM", "AAL2/3", "Billable / Non-Billable"],
+    ["EXT-USR-M", "Multi-Entity User", "Delegated Admin", "Delegated UI / SCIM", "AAL3", "Billable / Non-Billable"],
+    ["EXT-USR-NB", "Non-Billable User", "Internal Admin", "Delegated UI / Manual", "AAL2", "Non-Billable"],
+    ["INT-MOD-CLI", "Internal - Act as Client", "Workforce IDAM", "Workforce Sync", "AAL3", "Non-Billable"],
+    ["INT-MOD-IMP", "Internal - Impersonation", "IDAM -> CIAM", "Sync + Step-Up", "AAL3+", "Non-Billable"],
+    ["INT-MOD-ADM", "Internal - Act as Admin", "Workforce IDAM", "Workforce Sync", "AAL3", "Non-Billable"],
+    ["INT-MOD-SFT", "Internal - Software Admin", "IDAM / PAM", "Sync / PAM", "AAL3", "Non-Billable"],
+    ["NHI-SWF-SYS", "Automated SWIFT System", "Crypto Keys", "SWIFT Directory", "AAL3", "Billable / Non-Billable"],
+    ["NHI-SCM-API", "SCIM Ingestion Client", "External IGA", "API Provisioning", "AAL3", "Non-Billable"],
+    ["TRN-UAM-JIT", "Coexistence Legacy User", "Legacy UAM", "JIT Engine", "AAL2", "Billable / Non-Billable"]
+]
+
+table = doc.add_table(rows=len(table_data), cols=6)
+table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+for r_idx, row in enumerate(table_data):
+    for c_idx, cell_value in enumerate(row):
+        cell = table.cell(r_idx, c_idx)
+        cell.text = cell_value
+        if r_idx == 0:
+            for p in cell.paragraphs:
+                for run in p.runs:
+                    run.font.bold = True
+                    run.font.color.rgb = RGBColor(255, 255, 255)
+
+doc.save("CIAM_Target_Personas_Specification.docx")
+print("Document generated successfully as 'CIAM_Target_Personas_Specification.docx'")
+
+```
