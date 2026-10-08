@@ -1,0 +1,52 @@
+**The proposed boundary is: CIAM owns external client identities and client access contexts; workforce IDAM owns Euroclear employee identities.** Federation allows an IDAM-authenticated employee to access a CIAM-managed service without creating another independently managed employee identity.
+
+Here, “IDAM” means **Euroclear workforce identity management**. Internal workload identities require a designated workload identity service, which may sit within the wider enterprise IDAM capability.
+
+### Persona ownership and federation
+
+| Persona | Identity ownership | CIAM responsibility | IDAM responsibility | CIAM ↔ IDAM federation |
+|---|---|---|---|---|
+| **EXT-ADM** — Delegated client administrator | **CIAM** | Client identity, authentication or client-IdP federation, organisation membership, bounded delegated administration | No workforce identity role | **No.** Federation may occur with the **client’s IdP**, which is a different relationship |
+| **EXT-USR-S** — Single-entity client user | **CIAM** | Client lifecycle, authentication, organisation membership and single-entity access context | No workforce identity role | **No** |
+| **EXT-USR-M** — Multi-entity client user | **CIAM** | Client lifecycle, authentication and permitted multi-entity access context | No workforce identity role | **No.** Cross-entity access does not itself require workforce federation |
+| **EXT-USR-NB** — Non-billable client user | **CIAM** | Client lifecycle and access; maintains non-billable classification | No workforce identity role | **No** |
+| **INT-MOD-CLI** — Staff acting in a client context | **IDAM** | Maps the authenticated employee to an approved simulation context and issues restricted service-access tokens | Employee lifecycle, authentication, MFA and eligibility for the operator role | **Yes**, when accessing the CIAM service plane |
+| **INT-MOD-IMP** — Staff representing a client | **IDAM** for operator; **CIAM** for represented client | Validates representation rights, resolves client context and issues a token preserving operator and client identities | Authenticates the employee, performs required step-up and supplies trusted workforce identity assertions | **Yes**, followed by controlled representation/token exchange |
+| **INT-MOD-ADM** — Internal business administrator | **IDAM** | Enforces permitted client-organisation and entitlement administration actions | Employee lifecycle, authentication and administrator-role eligibility | **Yes**, for a CIAM-managed business administration portal; direct IDAM SSO may serve a separate internal portal |
+| **INT-MOD-SFT** — CIAM platform administrator | **IDAM** | Platform exposes management interfaces and enforces technical permissions | Employee/admin identity lifecycle, authentication and privileged-role eligibility | **Usually no CIAM federation.** Use IDAM SSO to the management plane; federation is needed only if that interface uses CIAM as its broker |
+| **NHI-SCM-API** — External client provisioning integration | **CIAM-side external integration registry** | Registers the client application, associates it with one organisation and constrains provisioning permissions | No workforce identity role | **No human federation.** Machine authentication applies |
+| **NHI-SWF-SYS** — Financial processing system | **Depends on ownership** | For a client-owned system: external application registration, client association and API-access policy | For a Euroclear-owned system: internal workload lifecycle and credentials through the designated workload identity service | **Not automatically.** Cross-domain machine trust or token exchange may be needed; ownership must first be confirmed |
+| **TRN-UAM-JIT** — Legacy coexistence user | **Legacy UAM transitioning to CIAM** | Links or provisions the client identity and progressively assumes lifecycle/access responsibilities | No workforce identity role | **No workforce federation.** The relevant trust is **UAM ↔ CIAM** |
+
+### Where CIAM and IDAM work together
+
+For **INT-MOD-CLI, INT-MOD-IMP and CIAM-hosted INT-MOD-ADM access**, the division should be explicit:
+
+| Activity | Responsible capability |
+|---|---|
+| Establish that the person is a Euroclear employee | **IDAM** |
+| Manage employee joining, role changes and leaving | **IDAM**, with revocation propagated to dependent access |
+| Authenticate the employee and satisfy workforce MFA/step-up requirements | **IDAM** |
+| Validate the trusted IDAM assertion at the CIAM boundary | **CIAM** |
+| Determine which client organisation, entity or represented user the employee may access | **CIAM access policy**, using approved workforce eligibility and business mandates |
+| Issue a token for the intended CIAM-managed application/API | **CIAM token service** in the proposed broker pattern |
+| Decide whether a specific business operation is permitted | **Application/API PEP and domain PDP**; CIAM supplies identity and context |
+| Record the operation and both identities where applicable | **CIAM, application and IDAM logs**, correlated through the enterprise audit platform |
+
+The workforce directory may remain entirely separate. **Federation does not require copying employee credentials into CIAM.** A local CIAM reference or entitlement mapping can exist while IDAM remains authoritative for the employee.
+
+For impersonation, the sequence is:
+
+**IDAM authenticates operator → CIAM validates the support mandate and client context → CIAM issues a restricted representation token → application authorizes and audits the operation.**
+
+Authentication alone must never grant the right to represent a client.
+
+### Architecture Board position
+
+Use three explicit concepts in the architecture:
+
+- **Identity ownership:** CIAM for external clients; IDAM for workforce.
+- **Access context:** CIAM can govern client-context access for both populations.
+- **Enforcement:** applications and policy services enforce business permissions.
+
+**PAM remains a supporting control for privileged access, particularly INT-MOD-SFT.** It does not change that persona’s IDAM ownership and does not need to appear as a third identity domain in the persona view.
